@@ -63,7 +63,7 @@ if st.session_state.budget_data:
 st.markdown("""
     <style>
     body {
-        background-image: url('https://your-image-link.com');
+        background-image: url('https://www.google.com/url?sa=i&url=https%3A%2F%2Fph.prosple.com%2Fgraduate-employers%2Fmanulife-data-services-inc&psig=AOvVaw31Qr7KM43_jW38skoEtdH0&ust=1749318655097000&source=images&cd=vfe&opi=89978449&ved=0CBQQjRxqFwoTCMiH-v6t3Y0DFQAAAAAdAAAAABAE');
         background-size: cover;
         background-position: center;
         color: white;
