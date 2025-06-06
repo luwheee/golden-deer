@@ -49,17 +49,12 @@ st.markdown("## A little gift from your baby 💕")
 if "show_video" not in st.session_state:
     st.session_state["show_video"] = False
 
-# Gift button + countdown animation
+# Gift button to reveal video and message together
 if not st.session_state["show_video"]:
     if st.button("🎁 Click the gift!"):
-        countdown = st.empty()
-        for i in reversed(range(1, 4)):
-            countdown.markdown(f"<h1 style='text-align:center;'>⏳ {i}...</h1>", unsafe_allow_html=True)
-            time.sleep(1)
-        countdown.empty()
         st.session_state["show_video"] = True
 
-# Video reveal alongside message (both appear at the same time)
+# Video & Message appear simultaneously
 if st.session_state["show_video"]:
     video_html = f"""
     <div class="video-message-container">
