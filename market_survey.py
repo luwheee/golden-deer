@@ -59,3 +59,14 @@ if st.session_state.budget_data:
     # Export data option
     csv = df.to_csv(index=False)
     st.download_button("Download Data as CSV", csv, "budget_data.csv", "text/csv")
+
+st.markdown("""
+    <style>
+    body {
+        background-image: url('https://your-image-link.com');
+        background-size: cover;
+        background-position: center;
+        color: white;
+    }
+    </style>
+""", unsafe_allow_html=True)
