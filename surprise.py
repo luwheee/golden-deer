@@ -1,6 +1,4 @@
 import streamlit as st
-import base64
-import time
 
 # --- Page Config ---
 st.set_page_config(page_title="Surprise for Commander Cha 💖", layout="centered")
@@ -61,18 +59,12 @@ if not st.session_state["show_video"]:
         countdown.empty()
         st.session_state["show_video"] = True
 
-# Video reveal alongside message (both appear together)
+# Video reveal alongside message (both appear at the same time)
 if st.session_state["show_video"]:
-    with open("0-02-06-wheeeee.mp4", "rb") as video_file:
-        video_bytes = video_file.read()
-        video_base64 = base64.b64encode(video_bytes).decode()
-    
     video_html = f"""
     <div class="video-message-container">
         <div class="video-box">
-            <video width="480" height="270" autoplay muted controls playsinline>
-                <source src="data:video/mp4;base64,{video_base64}" type="video/mp4">
-            </video>
+            <iframe src="https://drive.google.com/file/d/18ypDybhzZPxVxfHmld5x_oNnilSQrxan/preview" width="480" height="270" allow="autoplay"></iframe>
         </div>
         <div class="message-box">
             Hi baby, first time to try this but yeah—it was a success! 💝<br><br>
