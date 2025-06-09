@@ -13,7 +13,7 @@ credentials = Credentials.from_service_account_info(
     st.secrets["google_service_account"], scopes=scope
 )
 gc = gspread.authorize(credentials)
-sheet = gc.open("Skyline Summit Tracker")
+sheet = gc.open_by_key("19jTzhtiTTKPH6MF6kxQPf51CZSURjE1sNPEGwIQ05dI")
 worksheet = sheet.sheet1
 
 # --- App Title ---
