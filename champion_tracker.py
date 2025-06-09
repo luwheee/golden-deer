@@ -2,94 +2,15 @@ import streamlit as st
 import pandas as pd
 import copy
 import json
+import os
 from datetime import date
-from google.oauth2.service_account import Credentials
-from googleapiclient.discovery import build
 
-# Google Sheets Setup
-SHEET_NAME = "Scores"
-SPREADSHEET_ID = "19jTzhtiTTKPH6MF6kxQPf51CZSURjE1sNPEGwIQ05dI"
-RANGE = f"{SHEET_NAME}!A2:C11"
-
-# Load Google Sheets credentials from Streamlit secrets
-def get_sheets_service():
-    service_account_info = json.loads(st.secrets["google_service_account"]["json"])
-    creds = Credentials.from_service_account_info(service_account_info)
-    service = build('sheets', 'v4', credentials=creds)
-    return service.spreadsheets()
-
-def fetch_scores():
-    sheet = get_sheets_service()
-    result = sheet.values().get(spreadsheetId=SPREADSHEET_ID, range=RANGE).execute()
-    values = result.get('values', [])
-    agents = []
-    prospecting_scores = {}
-    recruitment_scores = {}
-    for row in values:
-        if len(row) >= 3:
-            agent = row[0]
-            agents.append(agent)
-            prospecting_scores[agent] = int(row[1]) if row[1].isdigit() else 0
-            recruitment_scores[agent] = int(row[2]) if row[2].isdigit() else 0
-    return agents, prospecting_scores, recruitment_scores
-
-def update_sheet(prospecting_scores, recruitment_scores):
-    data = []
-    for agent in prospecting_scores:
-        data.append([agent, prospecting_scores[agent], recruitment_scores.get(agent, 0)])
-    body = {
-        'values': data
-    }
-    sheet = get_sheets_service()
-    sheet.values().update(
-        spreadsheetId=SPREADSHEET_ID,
-        range=RANGE,
-        valueInputOption="RAW",
-        body=body
-    ).execute()
-
-# Load Data
-agents, pro_scores, rec_scores = fetch_scores()
-
-st.session_state.prospecting_scores = st.session_state.get("prospecting_scores", pro_scores)
-st.session_state.recruitment_scores = st.session_state.get("recruitment_scores", rec_scores)
-
-if "undo_stack" not in st.session_state:
-    st.session_state.undo_stack = []
-if "redo_stack" not in st.session_state:
-    st.session_state.redo_stack = []
-
-def push_undo():
-    snapshot = {
-        "prospecting": copy.deepcopy(st.session_state.prospecting_scores),
-        "recruitment": copy.deepcopy(st.session_state.recruitment_scores)
-    }
-    st.session_state.undo_stack.append(snapshot)
-    st.session_state.redo_stack.clear()
-
-def undo():
-    if st.session_state.undo_stack:
-        current = {
-            "prospecting": copy.deepcopy(st.session_state.prospecting_scores),
-            "recruitment": copy.deepcopy(st.session_state.recruitment_scores)
-        }
-        st.session_state.redo_stack.append(current)
-        snapshot = st.session_state.undo_stack.pop()
-        st.session_state.prospecting_scores = snapshot["prospecting"]
-        st.session_state.recruitment_scores = snapshot["recruitment"]
-        update_sheet(st.session_state.prospecting_scores, st.session_state.recruitment_scores)
-
-def redo():
-    if st.session_state.redo_stack:
-        current = {
-            "prospecting": copy.deepcopy(st.session_state.prospecting_scores),
-            "recruitment": copy.deepcopy(st.session_state.recruitment_scores)
-        }
-        st.session_state.undo_stack.append(current)
-        snapshot = st.session_state.redo_stack.pop()
-        st.session_state.prospecting_scores = snapshot["prospecting"]
-        st.session_state.recruitment_scores = snapshot["recruitment"]
-        update_sheet(st.session_state.prospecting_scores, st.session_state.recruitment_scores)
+# Agents list
+agents = [
+    "Louie Bartolome", "Riley Pe\u00f1aflorida", "Dominick Xavier Alonso Bandin",
+    "Jesica Anna Mikaela Latar", "Jona Alcazaren", "Luis De Guzman",
+    "Maribelle Rosal", "Nicole Daep", "Sofiah Morcilla", "Winston Pasia"
+]
 
 # Points system
 prospecting_points = {
@@ -103,6 +24,74 @@ recruitment_points = {
     "Successful Final Interview": 5
 }
 
+# File setup
+DATE_TODAY = date.today().isoformat()
+SAVE_FILE = f"leaderboard_data_{DATE_TODAY}.json"
+
+# Load existing data if available
+def load_data():
+    if os.path.exists(SAVE_FILE):
+        with open(SAVE_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return None
+
+# Save data to JSON file
+def save_data():
+    data = {
+        "prospecting": st.session_state.prospecting_scores,
+        "recruitment": st.session_state.recruitment_scores
+    }
+    with open(SAVE_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=4)
+
+# Load session state from file or initialize
+loaded = load_data()
+if loaded:
+    st.session_state.prospecting_scores = loaded.get("prospecting", {agent: 0 for agent in agents})
+    st.session_state.recruitment_scores = loaded.get("recruitment", {agent: 0 for agent in agents})
+else:
+    st.session_state.prospecting_scores = {agent: 0 for agent in agents}
+    st.session_state.recruitment_scores = {agent: 0 for agent in agents}
+
+if "undo_stack" not in st.session_state:
+    st.session_state.undo_stack = []
+if "redo_stack" not in st.session_state:
+    st.session_state.redo_stack = []
+
+# Save state to stack for undo/redo
+def push_undo():
+    snapshot = {
+        "prospecting": copy.deepcopy(st.session_state.prospecting_scores),
+        "recruitment": copy.deepcopy(st.session_state.recruitment_scores)
+    }
+    st.session_state.undo_stack.append(snapshot)
+    st.session_state.redo_stack.clear()
+
+# Undo and Redo functions
+def undo():
+    if st.session_state.undo_stack:
+        current = {
+            "prospecting": copy.deepcopy(st.session_state.prospecting_scores),
+            "recruitment": copy.deepcopy(st.session_state.recruitment_scores)
+        }
+        st.session_state.redo_stack.append(current)
+        snapshot = st.session_state.undo_stack.pop()
+        st.session_state.prospecting_scores = snapshot["prospecting"]
+        st.session_state.recruitment_scores = snapshot["recruitment"]
+        save_data()
+
+def redo():
+    if st.session_state.redo_stack:
+        current = {
+            "prospecting": copy.deepcopy(st.session_state.prospecting_scores),
+            "recruitment": copy.deepcopy(st.session_state.recruitment_scores)
+        }
+        st.session_state.undo_stack.append(current)
+        snapshot = st.session_state.redo_stack.pop()
+        st.session_state.prospecting_scores = snapshot["prospecting"]
+        st.session_state.recruitment_scores = snapshot["recruitment"]
+        save_data()
+
 # Title
 st.title("\U0001F530 Skyline Summit Unit Champion Tracker \U0001F530")
 
@@ -112,17 +101,30 @@ tab1, tab2 = st.tabs(["\U0001F9F2 Prospecting Champion", "\U0001F4BC Recruitment
 # Prospecting
 with tab1:
     st.subheader("Update Prospecting Points")
-    selected_agents = st.multiselect("Select agents", agents)
+    selected_agent = st.selectbox("Select agent", agents)
+
     with st.form("pros_form"):
-        counts = {label: st.number_input(f"{label} (+{pts})", min_value=0, step=1) for label, pts in prospecting_points.items()}
+        if "prospecting_counts" not in st.session_state:
+            for label in prospecting_points:
+                st.session_state[f"prospecting_{label}"] = 0
+
+        counts = {}
+        for label, pts in prospecting_points.items():
+            counts[label] = st.number_input(
+                f"{label} (+{pts})",
+                min_value=0,
+                step=1,
+                key=f"prospecting_{label}"
+            )
         submitted = st.form_submit_button("Submit")
-    if submitted and selected_agents:
+
+    if submitted:
         push_undo()
-        for agent in selected_agents:
-            for activity, count in counts.items():
-                st.session_state.prospecting_scores[agent] += prospecting_points[activity] * count
-        update_sheet(st.session_state.prospecting_scores, st.session_state.recruitment_scores)
-        st.success("Points updated.")
+        for activity, count in counts.items():
+            st.session_state.prospecting_scores[selected_agent] += prospecting_points[activity] * count
+            st.session_state[f"prospecting_{activity}"] = 0  # Reset input after submit
+        save_data()
+        st.success(f"Points updated for {selected_agent}.")
 
     col1, col2, col3 = st.columns(3)
     if col1.button("Undo"):
@@ -132,7 +134,7 @@ with tab1:
     if col3.button("Clear All"):
         push_undo()
         st.session_state.prospecting_scores = {agent: 0 for agent in agents}
-        update_sheet(st.session_state.prospecting_scores, st.session_state.recruitment_scores)
+        save_data()
         st.success("Scores cleared.")
 
     df_pro = pd.DataFrame(st.session_state.prospecting_scores.items(), columns=["Agent", "Points"]).sort_values(by="Points", ascending=False)
@@ -142,17 +144,30 @@ with tab1:
 # Recruitment
 with tab2:
     st.subheader("Update Recruitment Points")
-    selected_agents = st.multiselect("Select agents", agents, key="recruitment")
+    selected_agent_rec = st.selectbox("Select agent", agents, key="recruitment_select")
+
     with st.form("rec_form"):
-        counts = {label: st.number_input(f"{label} (+{pts})", min_value=0, step=1, key=label) for label, pts in recruitment_points.items()}
+        if "recruitment_counts" not in st.session_state:
+            for label in recruitment_points:
+                st.session_state[f"recruitment_{label}"] = 0
+
+        counts = {}
+        for label, pts in recruitment_points.items():
+            counts[label] = st.number_input(
+                f"{label} (+{pts})",
+                min_value=0,
+                step=1,
+                key=f"recruitment_{label}"
+            )
         submitted = st.form_submit_button("Submit")
-    if submitted and selected_agents:
+
+    if submitted:
         push_undo()
-        for agent in selected_agents:
-            for activity, count in counts.items():
-                st.session_state.recruitment_scores[agent] += recruitment_points[activity] * count
-        update_sheet(st.session_state.prospecting_scores, st.session_state.recruitment_scores)
-        st.success("Points updated.")
+        for activity, count in counts.items():
+            st.session_state.recruitment_scores[selected_agent_rec] += recruitment_points[activity] * count
+            st.session_state[f"recruitment_{activity}"] = 0
+        save_data()
+        st.success(f"Points updated for {selected_agent_rec}.")
 
     col1, col2, col3 = st.columns(3)
     if col1.button("Undo", key="undo2"):
@@ -162,7 +177,7 @@ with tab2:
     if col3.button("Clear All", key="clear2"):
         push_undo()
         st.session_state.recruitment_scores = {agent: 0 for agent in agents}
-        update_sheet(st.session_state.prospecting_scores, st.session_state.recruitment_scores)
+        save_data()
         st.success("Scores cleared.")
 
     df_rec = pd.DataFrame(st.session_state.recruitment_scores.items(), columns=["Agent", "Points"]).sort_values(by="Points", ascending=False)
