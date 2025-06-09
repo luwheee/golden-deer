@@ -72,7 +72,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.title("🏆 Champion Tracker with Multipliers, Undo/Redo & Animations")
+st.title("Skyline Summit Unit Champion Tracker")
 
 tab1, tab2 = st.tabs(["🧲 Prospecting Champion", "💼 Recruitment Champion"])
 
