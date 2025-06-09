@@ -28,14 +28,6 @@ recruitment_points = {
 DATE_TODAY = date.today().isoformat()
 SAVE_FILE = f"leaderboard_data_{DATE_TODAY}.json"
 
-# Initialize session state for inputs
-for activity in prospecting_points.keys():
-    if f"prospecting_{activity}" not in st.session_state:
-        st.session_state[f"prospecting_{activity}"] = 0
-for activity in recruitment_points.keys():
-    if f"recruitment_{activity}" not in st.session_state:
-        st.session_state[f"recruitment_{activity}"] = 0
-
 # Load existing data if available
 def load_data():
     if os.path.exists(SAVE_FILE):
@@ -109,17 +101,18 @@ tab1, tab2 = st.tabs(["🧲 Prospecting Champion", "💼 Recruitment Champion"])
 # Prospecting
 with tab1:
     st.subheader("Update Prospecting Points")
-    selected_agent = st.selectbox("Select an agent", agents, key="selected_prospecting_agent")
+    selected_agents = st.multiselect("Select an agent (1 only)", agents, max_selections=1)
+    selected_agent = selected_agents[0] if selected_agents else None
+
     with st.form("pros_form"):
-        counts = {
-            label: st.number_input(
-                f"{label} (+{pts})",
-                min_value=0,
-                step=1,
-                key=f"prospecting_{label}"
-            ) for label, pts in prospecting_points.items()
-        }
+        counts = {}
+        for label, pts in prospecting_points.items():
+            key_name = f"prospecting_{label}"
+            if key_name not in st.session_state:
+                st.session_state[key_name] = 0
+            counts[label] = st.number_input(f"{label} (+{pts})", min_value=0, step=1, key=key_name)
         submitted = st.form_submit_button("Submit")
+
     if submitted:
         if selected_agent:
             push_undo()
@@ -127,9 +120,12 @@ with tab1:
                 st.session_state.prospecting_scores[selected_agent] += prospecting_points[activity] * count
             save_data()
             st.success("Points updated.")
-            # Reset inputs
+
+            # Reset inputs after submit
             for activity in prospecting_points.keys():
                 st.session_state[f"prospecting_{activity}"] = 0
+
+            st.experimental_rerun()
 
     col1, col2, col3 = st.columns(3)
     if col1.button("Undo"):
@@ -149,17 +145,18 @@ with tab1:
 # Recruitment
 with tab2:
     st.subheader("Update Recruitment Points")
-    selected_agent = st.selectbox("Select an agent", agents, key="selected_recruitment_agent")
+    selected_agents = st.multiselect("Select an agent (1 only)", agents, max_selections=1, key="recruitment")
+    selected_agent = selected_agents[0] if selected_agents else None
+
     with st.form("rec_form"):
-        counts = {
-            label: st.number_input(
-                f"{label} (+{pts})",
-                min_value=0,
-                step=1,
-                key=f"recruitment_{label}"
-            ) for label, pts in recruitment_points.items()
-        }
+        counts = {}
+        for label, pts in recruitment_points.items():
+            key_name = f"recruitment_{label}"
+            if key_name not in st.session_state:
+                st.session_state[key_name] = 0
+            counts[label] = st.number_input(f"{label} (+{pts})", min_value=0, step=1, key=key_name)
         submitted = st.form_submit_button("Submit")
+
     if submitted:
         if selected_agent:
             push_undo()
@@ -167,9 +164,12 @@ with tab2:
                 st.session_state.recruitment_scores[selected_agent] += recruitment_points[activity] * count
             save_data()
             st.success("Points updated.")
-            # Reset inputs
+
+            # Reset inputs after submit
             for activity in recruitment_points.keys():
                 st.session_state[f"recruitment_{activity}"] = 0
+
+            st.experimental_rerun()
 
     col1, col2, col3 = st.columns(3)
     if col1.button("Undo", key="undo2"):
