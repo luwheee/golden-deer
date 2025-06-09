@@ -1,8 +1,6 @@
 import streamlit as st
 import pandas as pd
 import copy
-import json
-import os
 from datetime import date
 
 # Agents list
@@ -24,35 +22,11 @@ recruitment_points = {
     "Successful Final Interview": 5
 }
 
-# File setup
-DATE_TODAY = date.today().isoformat()
-SAVE_FILE = f"leaderboard_data_{DATE_TODAY}.json"
-
-# Load existing data if available
-def load_data():
-    if os.path.exists(SAVE_FILE):
-        with open(SAVE_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    return None
-
-# Save data to JSON file
-def save_data():
-    data = {
-        "prospecting": st.session_state.prospecting_scores,
-        "recruitment": st.session_state.recruitment_scores
-    }
-    with open(SAVE_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=4)
-
-# Load session state from file or initialize
-loaded = load_data()
-if loaded:
-    st.session_state.prospecting_scores = loaded.get("prospecting", {agent: 0 for agent in agents})
-    st.session_state.recruitment_scores = loaded.get("recruitment", {agent: 0 for agent in agents})
-else:
+# Session state initialization
+if "prospecting_scores" not in st.session_state:
     st.session_state.prospecting_scores = {agent: 0 for agent in agents}
+if "recruitment_scores" not in st.session_state:
     st.session_state.recruitment_scores = {agent: 0 for agent in agents}
-
 if "undo_stack" not in st.session_state:
     st.session_state.undo_stack = []
 if "redo_stack" not in st.session_state:
@@ -78,7 +52,6 @@ def undo():
         snapshot = st.session_state.undo_stack.pop()
         st.session_state.prospecting_scores = snapshot["prospecting"]
         st.session_state.recruitment_scores = snapshot["recruitment"]
-        save_data()
 
 def redo():
     if st.session_state.redo_stack:
@@ -90,10 +63,9 @@ def redo():
         snapshot = st.session_state.redo_stack.pop()
         st.session_state.prospecting_scores = snapshot["prospecting"]
         st.session_state.recruitment_scores = snapshot["recruitment"]
-        save_data()
 
 # Title
-st.title("\U0001F530 Skyline Summit Unit Champion Tracker \U0001F530")
+st.title("🔰 Skyline Summit Unit Champion Tracker 🔰")
 
 # Tabs
 tab1, tab2 = st.tabs(["🧲 Prospecting Champion", "💼 Recruitment Champion"])
@@ -111,7 +83,6 @@ with tab1:
             for agent in selected_agents:
                 for activity, count in counts.items():
                     st.session_state.prospecting_scores[agent] += prospecting_points[activity] * count
-            save_data()
             st.success("Points updated.")
 
     col1, col2, col3 = st.columns(3)
@@ -122,7 +93,6 @@ with tab1:
     if col3.button("Clear All"):
         push_undo()
         st.session_state.prospecting_scores = {agent: 0 for agent in agents}
-        save_data()
         st.success("Scores cleared.")
 
     df_pro = pd.DataFrame(st.session_state.prospecting_scores.items(), columns=["Agent", "Points"]).sort_values(by="Points", ascending=False)
@@ -142,7 +112,6 @@ with tab2:
             for agent in selected_agents:
                 for activity, count in counts.items():
                     st.session_state.recruitment_scores[agent] += recruitment_points[activity] * count
-            save_data()
             st.success("Points updated.")
 
     col1, col2, col3 = st.columns(3)
@@ -153,7 +122,6 @@ with tab2:
     if col3.button("Clear All", key="clear2"):
         push_undo()
         st.session_state.recruitment_scores = {agent: 0 for agent in agents}
-        save_data()
         st.success("Scores cleared.")
 
     df_rec = pd.DataFrame(st.session_state.recruitment_scores.items(), columns=["Agent", "Points"]).sort_values(by="Points", ascending=False)
