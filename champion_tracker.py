@@ -1,6 +1,9 @@
 import streamlit as st
 import pandas as pd
 import copy
+import json
+import os
+from datetime import date
 
 # Agents list
 agents = [
@@ -21,21 +24,42 @@ recruitment_points = {
     "Successful Final Interview": 5
 }
 
-# Initialize session state variables
-if "prospecting_scores" not in st.session_state:
+# File setup
+DATE_TODAY = date.today().isoformat()
+SAVE_FILE = f"leaderboard_data_{DATE_TODAY}.json"
+
+# Load existing data if available
+def load_data():
+    if os.path.exists(SAVE_FILE):
+        with open(SAVE_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return None
+
+# Save data to JSON file
+def save_data():
+    data = {
+        "prospecting": st.session_state.prospecting_scores,
+        "recruitment": st.session_state.recruitment_scores
+    }
+    with open(SAVE_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=4)
+
+# Load session state from file or initialize
+loaded = load_data()
+if loaded:
+    st.session_state.prospecting_scores = loaded.get("prospecting", {agent: 0 for agent in agents})
+    st.session_state.recruitment_scores = loaded.get("recruitment", {agent: 0 for agent in agents})
+else:
     st.session_state.prospecting_scores = {agent: 0 for agent in agents}
-if "recruitment_scores" not in st.session_state:
     st.session_state.recruitment_scores = {agent: 0 for agent in agents}
+
 if "undo_stack" not in st.session_state:
     st.session_state.undo_stack = []
 if "redo_stack" not in st.session_state:
     st.session_state.redo_stack = []
-if "show_pros_confirm" not in st.session_state:
-    st.session_state.show_pros_confirm = False
-if "show_rec_confirm" not in st.session_state:
-    st.session_state.show_rec_confirm = False
 
-def save_state():
+# Save state to stack for undo/redo
+def push_undo():
     snapshot = {
         "prospecting": copy.deepcopy(st.session_state.prospecting_scores),
         "recruitment": copy.deepcopy(st.session_state.recruitment_scores)
@@ -43,159 +67,95 @@ def save_state():
     st.session_state.undo_stack.append(snapshot)
     st.session_state.redo_stack.clear()
 
+# Undo and Redo functions
 def undo():
     if st.session_state.undo_stack:
-        snapshot = st.session_state.undo_stack.pop()
-        st.session_state.redo_stack.append({
+        current = {
             "prospecting": copy.deepcopy(st.session_state.prospecting_scores),
             "recruitment": copy.deepcopy(st.session_state.recruitment_scores)
-        })
+        }
+        st.session_state.redo_stack.append(current)
+        snapshot = st.session_state.undo_stack.pop()
         st.session_state.prospecting_scores = snapshot["prospecting"]
         st.session_state.recruitment_scores = snapshot["recruitment"]
+        save_data()
 
 def redo():
     if st.session_state.redo_stack:
-        snapshot = st.session_state.redo_stack.pop()
-        st.session_state.undo_stack.append({
+        current = {
             "prospecting": copy.deepcopy(st.session_state.prospecting_scores),
             "recruitment": copy.deepcopy(st.session_state.recruitment_scores)
-        })
+        }
+        st.session_state.undo_stack.append(current)
+        snapshot = st.session_state.redo_stack.pop()
         st.session_state.prospecting_scores = snapshot["prospecting"]
         st.session_state.recruitment_scores = snapshot["recruitment"]
+        save_data()
 
-# Custom CSS for better UI
-st.markdown("""
-<style>
-    .stNumberInput > label {
-        font-weight: bold;
-    }
-</style>
-""", unsafe_allow_html=True)
+# Title
+st.title("\U0001F530 Skyline Summit Unit Champion Tracker \U0001F530")
 
-st.title("🔰Skyline Summit Unit Champion Tracker🔰")
-
+# Tabs
 tab1, tab2 = st.tabs(["🧲 Prospecting Champion", "💼 Recruitment Champion"])
 
+# Prospecting
 with tab1:
     st.subheader("Update Prospecting Points")
-    selected_agents_pros = st.multiselect("Select agents", agents, key="pros_agents", help="Select agents to update points")
+    selected_agents = st.multiselect("Select agents", agents)
+    with st.form("pros_form"):
+        counts = {label: st.number_input(f"{label} (+{pts})", min_value=0, step=1) for label, pts in prospecting_points.items()}
+        submitted = st.form_submit_button("Submit")
+    if submitted:
+        if selected_agents:
+            push_undo()
+            for agent in selected_agents:
+                for activity, count in counts.items():
+                    st.session_state.prospecting_scores[agent] += prospecting_points[activity] * count
+            save_data()
+            st.success("Points updated.")
 
-    with st.form("prospecting_form"):
-        st.markdown("### Enter Activity Counts (0 = None)")
-
-        pros_inputs = {}
-        for label, pts in prospecting_points.items():
-            pros_inputs[label] = st.number_input(
-                f"{label} (+{pts} pts) ",
-                min_value=0,
-                step=1,
-                key=f"pros_input_{label}",
-                help=f"Points per unit: {pts}"
-            )
-
-        submitted = st.form_submit_button("✅ Submit")  # <-- no key here
-
-        if submitted:
-            if not selected_agents_pros:
-                st.warning("Please select at least one agent.")
-            else:
-                with st.spinner("Updating points..."):
-                    save_state()
-                    for agent in selected_agents_pros:
-                        for label, multiplier in pros_inputs.items():
-                            st.session_state.prospecting_scores[agent] += prospecting_points[label] * multiplier
-                st.balloons()
-                st.success("Prospecting points updated successfully!")
-
-    col1, col2, col3 = st.columns([1,1,4])
-    if col1.button("↩️ Undo", key="pros_undo"):
+    col1, col2, col3 = st.columns(3)
+    if col1.button("Undo"):
         undo()
-    if col2.button("↪️ Redo", key="pros_redo"):
+    if col2.button("Redo"):
         redo()
+    if col3.button("Clear All"):
+        push_undo()
+        st.session_state.prospecting_scores = {agent: 0 for agent in agents}
+        save_data()
+        st.success("Scores cleared.")
 
-    if col3.button("🧼 Clear Prospecting Scores", key="pros_clear"):
-        st.session_state.show_pros_confirm = True
-
-    if st.session_state.show_pros_confirm:
-        st.warning("Are you sure you want to clear all prospecting scores? This action cannot be undone.")
-        c1, c2 = st.columns(2)
-        with c1:
-            if st.button("Yes, Clear Prospecting Scores", key="pros_clear_confirm"):
-                save_state()
-                st.session_state.prospecting_scores = {agent: 0 for agent in agents}
-                st.session_state.show_pros_confirm = False
-                st.success("Prospecting scores cleared.")
-        with c2:
-            if st.button("Cancel", key="pros_clear_cancel"):
-                st.session_state.show_pros_confirm = False
-
-    st.markdown("### 🧲 Prospecting Leaderboard")
-    df_pro = pd.DataFrame(st.session_state.prospecting_scores.items(), columns=["Agent", "Points"])
-    df_pro = df_pro.sort_values(by="Points", ascending=False)
+    df_pro = pd.DataFrame(st.session_state.prospecting_scores.items(), columns=["Agent", "Points"]).sort_values(by="Points", ascending=False)
     st.dataframe(df_pro)
-
     st.bar_chart(df_pro.set_index("Agent"))
 
-    st.download_button("📥 Download Leaderboard", df_pro.to_csv(index=False), "prospecting_leaderboard.csv", "text/csv")
-
+# Recruitment
 with tab2:
     st.subheader("Update Recruitment Points")
-    selected_agents_rec = st.multiselect("Select agents", agents, key="rec_agents", help="Select agents to update points")
+    selected_agents = st.multiselect("Select agents", agents, key="recruitment")
+    with st.form("rec_form"):
+        counts = {label: st.number_input(f"{label} (+{pts})", min_value=0, step=1, key=label) for label, pts in recruitment_points.items()}
+        submitted = st.form_submit_button("Submit")
+    if submitted:
+        if selected_agents:
+            push_undo()
+            for agent in selected_agents:
+                for activity, count in counts.items():
+                    st.session_state.recruitment_scores[agent] += recruitment_points[activity] * count
+            save_data()
+            st.success("Points updated.")
 
-    with st.form("recruitment_form"):
-        st.markdown("### Enter Activity Counts (0 = None)")
-
-        rec_inputs = {}
-        for label, pts in recruitment_points.items():
-            rec_inputs[label] = st.number_input(
-                f"{label} (+{pts} pts) ",
-                min_value=0,
-                step=1,
-                key=f"rec_input_{label}",
-                help=f"Points per unit: {pts}"
-            )
-
-        submitted2 = st.form_submit_button("✅ Submit")  # <-- no key here
-
-        if submitted2:
-            if not selected_agents_rec:
-                st.warning("Please select at least one agent.")
-            else:
-                with st.spinner("Updating points..."):
-                    save_state()
-                    for agent in selected_agents_rec:
-                        for label, multiplier in rec_inputs.items():
-                            st.session_state.recruitment_scores[agent] += recruitment_points[label] * multiplier
-                st.balloons()
-                st.success("Recruitment points updated successfully!")
-
-    col4, col5, col6 = st.columns([1,1,4])
-    if col4.button("↩️ Undo", key="rec_undo"):
+    col1, col2, col3 = st.columns(3)
+    if col1.button("Undo", key="undo2"):
         undo()
-    if col5.button("↪️ Redo", key="rec_redo"):
+    if col2.button("Redo", key="redo2"):
         redo()
+    if col3.button("Clear All", key="clear2"):
+        push_undo()
+        st.session_state.recruitment_scores = {agent: 0 for agent in agents}
+        save_data()
+        st.success("Scores cleared.")
 
-    if col6.button("🧼 Clear Recruitment Scores", key="rec_clear"):
-        st.session_state.show_rec_confirm = True
-
-    if st.session_state.show_rec_confirm:
-        st.warning("Are you sure you want to clear all recruitment scores? This action cannot be undone.")
-        c3, c4 = st.columns(2)
-        with c3:
-            if st.button("Yes, Clear Recruitment Scores", key="rec_clear_confirm"):
-                save_state()
-                st.session_state.recruitment_scores = {agent: 0 for agent in agents}
-                st.session_state.show_rec_confirm = False
-                st.success("Recruitment scores cleared.")
-        with c4:
-            if st.button("Cancel", key="rec_clear_cancel"):
-                st.session_state.show_rec_confirm = False
-
-    st.markdown("### 💼 Recruitment Leaderboard")
-    df_rec = pd.DataFrame(st.session_state.recruitment_scores.items(), columns=["Agent", "Points"])
-    df_rec = df_rec.sort_values(by="Points", ascending=False)
+    df_rec = pd.DataFrame(st.session_state.recruitment_scores.items(), columns=["Agent", "Points"]).sort_values(by="Points", ascending=False)
     st.dataframe(df_rec)
-
     st.bar_chart(df_rec.set_index("Agent"))
-
-    st.download_button("📥 Download Leaderboard", df_rec.to_csv(index=False), "recruitment_leaderboard.csv", "text/csv")
