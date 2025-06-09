@@ -14,7 +14,7 @@ credentials = Credentials.from_service_account_info(
 )
 gc = gspread.authorize(credentials)
 sheet = gc.open_by_key("19jTzhtiTTKPH6MF6kxQPf51CZSURjE1sNPEGwIQ05dI")
-worksheet = sheet.sheet1
+worksheet = sheet.get_worksheet_by_id(1016758700)
 
 # --- App Title ---
 st.title("💸 Budget Tracker")
