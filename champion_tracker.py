@@ -1,16 +1,20 @@
 import streamlit as st
 import pandas as pd
 import copy
+import json
+import os
+import gspread
 from datetime import date
+from oauth2client.service_account import ServiceAccountCredentials
 
-# Agents list
+# 🧠 AGENTS
 agents = [
     "Louie Bartolome", "Riley Peñaflorida", "Dominick Xavier Alonso Bandin",
     "Jesica Anna Mikaela Latar", "Jona Alcazaren", "Luis De Guzman",
     "Maribelle Rosal", "Nicole Daep", "Sofiah Morcilla", "Winston Pasia"
 ]
 
-# Points system
+# 🧮 POINT SYSTEMS
 prospecting_points = {
     "Valid Prospect": 1,
     "Successful Quotation Proposal": 2,
@@ -22,17 +26,58 @@ recruitment_points = {
     "Successful Final Interview": 5
 }
 
-# Session state initialization
+# 📁 FILE PATH
+SAVE_FILE = "scores_data.json"
+
+# 📊 GOOGLE SHEETS FUNCTIONS
+def get_gsheet():
+    scope = [
+        "https://spreadsheets.google.com/feeds",
+        "https://www.googleapis.com/auth/spreadsheets",
+        "https://www.googleapis.com/auth/drive"
+    ]
+    creds = ServiceAccountCredentials.from_json_keyfile_name("champion_tracker_creds.json", scope)
+    client = gspread.authorize(creds)
+    sheet = client.open("Skyline Summit Scores").sheet1
+    return sheet
+
+def save_to_gsheet():
+    sheet = get_gsheet()
+    sheet.clear()
+    sheet.update("A1", [["Agent", "Prospecting Points", "Recruitment Points"]])
+    for agent in agents:
+        sheet.append_row([
+            agent,
+            st.session_state.prospecting_scores.get(agent, 0),
+            st.session_state.recruitment_scores.get(agent, 0)
+        ])
+
+# 💾 SAVE / LOAD FUNCTIONS
+def save_scores():
+    with open(SAVE_FILE, "w") as f:
+        json.dump({
+            "prospecting": st.session_state.prospecting_scores,
+            "recruitment": st.session_state.recruitment_scores
+        }, f)
+
+def load_scores():
+    if os.path.exists(SAVE_FILE):
+        with open(SAVE_FILE, "r") as f:
+            data = json.load(f)
+            st.session_state.prospecting_scores = data.get("prospecting", {agent: 0 for agent in agents})
+            st.session_state.recruitment_scores = data.get("recruitment", {agent: 0 for agent in agents})
+    else:
+        st.session_state.prospecting_scores = {agent: 0 for agent in agents}
+        st.session_state.recruitment_scores = {agent: 0 for agent in agents}
+
+# 🔁 SESSION STATE INIT
 if "prospecting_scores" not in st.session_state:
-    st.session_state.prospecting_scores = {agent: 0 for agent in agents}
-if "recruitment_scores" not in st.session_state:
-    st.session_state.recruitment_scores = {agent: 0 for agent in agents}
+    load_scores()
 if "undo_stack" not in st.session_state:
     st.session_state.undo_stack = []
 if "redo_stack" not in st.session_state:
     st.session_state.redo_stack = []
 
-# Save state to stack for undo/redo
 def push_undo():
     snapshot = {
         "prospecting": copy.deepcopy(st.session_state.prospecting_scores),
@@ -41,7 +86,6 @@ def push_undo():
     st.session_state.undo_stack.append(snapshot)
     st.session_state.redo_stack.clear()
 
-# Undo and Redo functions
 def undo():
     if st.session_state.undo_stack:
         current = {
@@ -52,6 +96,7 @@ def undo():
         snapshot = st.session_state.undo_stack.pop()
         st.session_state.prospecting_scores = snapshot["prospecting"]
         st.session_state.recruitment_scores = snapshot["recruitment"]
+        save_scores()
 
 def redo():
     if st.session_state.redo_stack:
@@ -63,14 +108,15 @@ def redo():
         snapshot = st.session_state.redo_stack.pop()
         st.session_state.prospecting_scores = snapshot["prospecting"]
         st.session_state.recruitment_scores = snapshot["recruitment"]
+        save_scores()
 
-# Title
+# 🌟 TITLE
 st.title("🔰 Skyline Summit Unit Champion Tracker 🔰")
 
-# Tabs
+# 🧲 TABS
 tab1, tab2 = st.tabs(["🧲 Prospecting Champion", "💼 Recruitment Champion"])
 
-# Prospecting
+# 🔷 PROSPECTING
 with tab1:
     st.subheader("Update Prospecting Points")
     selected_agents = st.multiselect("Select agents", agents)
@@ -83,6 +129,7 @@ with tab1:
             for agent in selected_agents:
                 for activity, count in counts.items():
                     st.session_state.prospecting_scores[agent] += prospecting_points[activity] * count
+            save_scores()
             st.success("Points updated.")
 
     col1, col2, col3 = st.columns(3)
@@ -93,13 +140,14 @@ with tab1:
     if col3.button("Clear All"):
         push_undo()
         st.session_state.prospecting_scores = {agent: 0 for agent in agents}
+        save_scores()
         st.success("Scores cleared.")
 
     df_pro = pd.DataFrame(st.session_state.prospecting_scores.items(), columns=["Agent", "Points"]).sort_values(by="Points", ascending=False)
     st.dataframe(df_pro)
     st.bar_chart(df_pro.set_index("Agent"))
 
-# Recruitment
+# 🔶 RECRUITMENT
 with tab2:
     st.subheader("Update Recruitment Points")
     selected_agents = st.multiselect("Select agents", agents, key="recruitment")
@@ -112,6 +160,7 @@ with tab2:
             for agent in selected_agents:
                 for activity, count in counts.items():
                     st.session_state.recruitment_scores[agent] += recruitment_points[activity] * count
+            save_scores()
             st.success("Points updated.")
 
     col1, col2, col3 = st.columns(3)
@@ -122,8 +171,14 @@ with tab2:
     if col3.button("Clear All", key="clear2"):
         push_undo()
         st.session_state.recruitment_scores = {agent: 0 for agent in agents}
+        save_scores()
         st.success("Scores cleared.")
 
     df_rec = pd.DataFrame(st.session_state.recruitment_scores.items(), columns=["Agent", "Points"]).sort_values(by="Points", ascending=False)
     st.dataframe(df_rec)
     st.bar_chart(df_rec.set_index("Agent"))
+
+# 🟢 SYNC BUTTON
+if st.button("📤 Sync to Google Sheets"):
+    save_to_gsheet()
+    st.success("Data synced to Google Sheets!")
