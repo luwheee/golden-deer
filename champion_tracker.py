@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import copy
 import json
-import time
 from datetime import date
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
@@ -26,21 +25,28 @@ def fetch_scores():
     agents = []
     prospecting_scores = {}
     recruitment_scores = {}
-
     for row in values:
         if len(row) >= 3:
             agent = row[0]
             agents.append(agent)
             prospecting_scores[agent] = int(row[1]) if row[1].isdigit() else 0
             recruitment_scores[agent] = int(row[2]) if row[2].isdigit() else 0
-
     return agents, prospecting_scores, recruitment_scores
 
 def update_sheet(prospecting_scores, recruitment_scores):
-    data = [[agent, prospecting_scores[agent], recruitment_scores.get(agent, 0)] for agent in prospecting_scores]
-    body = {'values': data}
+    data = []
+    for agent in prospecting_scores:
+        data.append([agent, prospecting_scores[agent], recruitment_scores.get(agent, 0)])
+    body = {
+        'values': data
+    }
     sheet = get_sheets_service()
-    sheet.values().update(spreadsheetId=SPREADSHEET_ID, range=RANGE, valueInputOption="RAW", body=body).execute()
+    sheet.values().update(
+        spreadsheetId=SPREADSHEET_ID,
+        range=RANGE,
+        valueInputOption="RAW",
+        body=body
+    ).execute()
 
 # Load Data
 agents, pro_scores, rec_scores = fetch_scores()
@@ -97,9 +103,8 @@ recruitment_points = {
     "Successful Final Interview": 5
 }
 
-# Title with Confetti Animation
+# Title
 st.title("\U0001F530 Skyline Summit Unit Champion Tracker \U0001F530")
-st.markdown("<style>h1 { text-align: center; color: #ff6b6b; }</style>", unsafe_allow_html=True)
 
 # Tabs
 tab1, tab2 = st.tabs(["\U0001F9F2 Prospecting Champion", "\U0001F4BC Recruitment Champion"])
@@ -108,21 +113,16 @@ tab1, tab2 = st.tabs(["\U0001F9F2 Prospecting Champion", "\U0001F4BC Recruitment
 with tab1:
     st.subheader("Update Prospecting Points")
     selected_agents = st.multiselect("Select agents", agents)
-
     with st.form("pros_form"):
         counts = {label: st.number_input(f"{label} (+{pts})", min_value=0, step=1) for label, pts in prospecting_points.items()}
         submitted = st.form_submit_button("Submit")
-
     if submitted and selected_agents:
         push_undo()
         for agent in selected_agents:
             for activity, count in counts.items():
                 st.session_state.prospecting_scores[agent] += prospecting_points[activity] * count
-                if st.session_state.prospecting_scores[agent] >= 50:  # Confetti for high score
-                    st.snow()
-
         update_sheet(st.session_state.prospecting_scores, st.session_state.recruitment_scores)
-        st.toast("✅ Points updated!", icon="🎉")
+        st.success("Points updated.")
 
     col1, col2, col3 = st.columns(3)
     if col1.button("Undo"):
@@ -133,33 +133,26 @@ with tab1:
         push_undo()
         st.session_state.prospecting_scores = {agent: 0 for agent in agents}
         update_sheet(st.session_state.prospecting_scores, st.session_state.recruitment_scores)
-        st.toast("🗑 Scores cleared!")
+        st.success("Scores cleared.")
 
-    chart_placeholder = st.empty()
-    chart_placeholder.write("⏳ Loading scores...")
-    time.sleep(1)
     df_pro = pd.DataFrame(st.session_state.prospecting_scores.items(), columns=["Agent", "Points"]).sort_values(by="Points", ascending=False)
-    chart_placeholder.bar_chart(df_pro.set_index("Agent"))
+    st.dataframe(df_pro)
+    st.bar_chart(df_pro.set_index("Agent"))
 
 # Recruitment
 with tab2:
     st.subheader("Update Recruitment Points")
     selected_agents = st.multiselect("Select agents", agents, key="recruitment")
-
     with st.form("rec_form"):
         counts = {label: st.number_input(f"{label} (+{pts})", min_value=0, step=1, key=label) for label, pts in recruitment_points.items()}
         submitted = st.form_submit_button("Submit")
-
     if submitted and selected_agents:
         push_undo()
         for agent in selected_agents:
             for activity, count in counts.items():
                 st.session_state.recruitment_scores[agent] += recruitment_points[activity] * count
-                if st.session_state.recruitment_scores[agent] >= 50:
-                    st.snow()
-
         update_sheet(st.session_state.prospecting_scores, st.session_state.recruitment_scores)
-        st.toast("✅ Points updated!", icon="🎉")
+        st.success("Points updated.")
 
     col1, col2, col3 = st.columns(3)
     if col1.button("Undo", key="undo2"):
@@ -170,10 +163,8 @@ with tab2:
         push_undo()
         st.session_state.recruitment_scores = {agent: 0 for agent in agents}
         update_sheet(st.session_state.prospecting_scores, st.session_state.recruitment_scores)
-        st.toast("🗑 Scores cleared!")
+        st.success("Scores cleared.")
 
-    chart_placeholder = st.empty()
-    chart_placeholder.write("⏳ Loading scores...")
-    time.sleep(1)
     df_rec = pd.DataFrame(st.session_state.recruitment_scores.items(), columns=["Agent", "Points"]).sort_values(by="Points", ascending=False)
-    chart_placeholder.bar_chart(df_rec.set_index("Agent"))
+    st.dataframe(df_rec)
+    st.bar_chart(df_rec.set_index("Agent"))
