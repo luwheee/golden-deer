@@ -4,7 +4,7 @@ import streamlit as st
 st.set_page_config(page_title="Surprise for Commander Cha 💖", layout="centered")
 
 # --- GitHub-hosted Image ---
-bg_image_url = "https://raw.githubusercontent.com/your-username/your-repo/main/Louie.jpg"
+bg_image_url = "https://raw.githubusercontent.com/luwheee/golden-deer/main/Louie.jpg"
 
 # --- Custom CSS with Background ---
 custom_css = f"""
