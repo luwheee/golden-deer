@@ -1,24 +1,16 @@
 import streamlit as st
-from pathlib import Path
-import base64
 
 # --- Page Config ---
 st.set_page_config(page_title="Surprise for Commander Cha 💖", layout="centered")
 
-# --- Function to Convert Image to Base64 ---
-def get_base64_bg(image_path):
-    with open(image_path, "rb") as img_file:
-        return base64.b64encode(img_file.read()).decode()
-
-# --- Background Image Setup ---
-bg_image_path = "Louie.jpg"
-bg_base64 = get_base64_bg(bg_image_path)
+# --- GitHub-hosted Image ---
+bg_image_url = "https://raw.githubusercontent.com/your-username/your-repo/main/Louie.jpg"
 
 # --- Custom CSS with Background ---
 custom_css = f"""
 <style>
 body {{
-    background: url("data:image/jpeg;base64,{bg_base64}") no-repeat center center fixed;
+    background: url("{bg_image_url}") no-repeat center center fixed;
     background-size: cover;
     font-family: 'Comic Sans MS', cursive, sans-serif;
 }}
