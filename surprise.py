@@ -7,7 +7,7 @@ st.set_page_config(page_title="Surprise for Commander Cha 💖", layout="centere
 BG_IMAGE_URL = "https://raw.githubusercontent.com/luwheee/golden-deer/main/Louie.jpg"
 
 # --- Display the Background Image ---
-st.image(BG_IMAGE_URL, use_column_width=True)
+st.image(BG_IMAGE_URL, use_container_width=True)
 
 # --- Main Content ---
 st.markdown("### 💖 Surprise for Commander Cha 💖")
