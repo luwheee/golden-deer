@@ -11,7 +11,7 @@ def get_base64_bg(image_path):
         return base64.b64encode(img_file.read()).decode()
 
 # --- Background Image Setup ---
-bg_image_path = "/mnt/data/Louie.jpg"
+bg_image_path = "Louie.jpg"
 bg_base64 = get_base64_bg(bg_image_path)
 
 # --- Custom CSS with Background ---
