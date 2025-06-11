@@ -4,7 +4,7 @@ import streamlit as st
 st.set_page_config(page_title="Surprise for Commander Cha 💖", layout="centered")
 
 # --- Custom CSS ---
-custom_css = """
+st.markdown("""
 <style>
 body {
     background: linear-gradient(to top right, #ffe6f0, #ffe6ff);
@@ -16,12 +16,14 @@ body {
     align-items: center;
     gap: 2rem;
     margin-top: 2rem;
+    flex-wrap: wrap;
 }
-.video-box {
-    flex: 1;
+.video-box iframe {
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
 }
 .message-box {
-    flex: 1;
     text-align: center;
     font-size: 22px;
     color: #d6336c;
@@ -37,26 +39,20 @@ body {
     to { opacity: 1; transform: translateY(0); }
 }
 </style>
-"""
+""", unsafe_allow_html=True)
 
-st.markdown(custom_css, unsafe_allow_html=True)
-
-# Title and intro
+# --- Header Content ---
 st.markdown("### 💖 Surprise for Commander Cha 💖")
 st.markdown("## A little gift from your baby 💕")
 
-# Session flag for video reveal
-if "show_video" not in st.session_state:
-    st.session_state["show_video"] = False
-
-# Gift button to reveal video and message together
-if not st.session_state["show_video"]:
+# --- Show/hide logic ---
+if st.session_state.get("show_video", False) is False:
     if st.button("🎁 Click the gift!"):
         st.session_state["show_video"] = True
 
-# Video & Message appear simultaneously
-if st.session_state["show_video"]:
-    video_html = f"""
+# --- Video & Message Display ---
+if st.session_state.get("show_video"):
+    st.markdown("""
     <div class="video-message-container">
         <div class="video-box">
             <iframe src="https://drive.google.com/file/d/18ypDybhzZPxVxfHmld5x_oNnilSQrxan/preview" width="480" height="270" allow="autoplay"></iframe>
@@ -68,7 +64,5 @@ if st.session_state["show_video"]:
             I love you so much! 💕
         </div>
     </div>
-    """
-    
-    st.markdown(video_html, unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
     st.balloons()
