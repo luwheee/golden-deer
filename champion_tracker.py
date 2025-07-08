@@ -102,6 +102,8 @@ recruitment_points = {
     "Attended COP": 2,
     "Successful Final Interview": 5
 }
+# Logo from Google Drive
+st.image("https://drive.google.com/file/d/13aAGZz1lnnre-de8fUUypHeIyi4Zy1uD/view?usp=drive_link", width=120)
 
 # Title
 st.title("\U0001F530 Skyline Summit Unit Champion Tracker \U0001F530")
