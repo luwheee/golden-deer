@@ -103,9 +103,6 @@ recruitment_points = {
     "Successful Final Interview": 5
 }
 
-# Logo from Google Drive
-st.image("https://i.imgur.com/yourimage.png", width=120)
-
 # Title
 st.title("\U0001F530 Skyline Summit Unit Champion Tracker \U0001F530")
 
