@@ -102,6 +102,7 @@ recruitment_points = {
     "Attended COP": 2,
     "Successful Final Interview": 5
 }
+
 # Logo from Google Drive
 st.image("https://i.imgur.com/yourimage.png", width=120)
 
