@@ -9,7 +9,7 @@ from googleapiclient.discovery import build
 # Google Sheets Setup
 SHEET_NAME = "Scores"
 SPREADSHEET_ID = "19jTzhtiTTKPH6MF6kxQPf51CZSURjE1sNPEGwIQ05dI"
-RANGE = f"{SHEET_NAME}!A2:C11"
+RANGE = f"{SHEET_NAME}!A2:C19"
 
 # Load Google Sheets credentials from Streamlit secrets
 def get_sheets_service():
